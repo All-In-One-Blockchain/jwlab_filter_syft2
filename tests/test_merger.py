@@ -5,6 +5,7 @@ import os
 import pytest
 from ltlf_merger.merger import LTLfSpecMerger
 
+
 def test_init_share_ratio():
     """Test share ratio validation in constructor."""
     # Valid share ratios
@@ -18,10 +19,10 @@ def test_init_share_ratio():
     with pytest.raises(ValueError):
         LTLfSpecMerger(1.1)
 
+
 def test_variable_conflicts():
     """Test detection of environment and system variable conflicts."""
     merger = LTLfSpecMerger()
-    test_dir = os.path.join(os.path.dirname(__file__), '..', 'syft_1_filtered')
 
     # Create test files with conflicting variables
     os.makedirs('test_files', exist_ok=True)
@@ -34,14 +35,14 @@ def test_variable_conflicts():
         merger.merge_specs([('test_files/conflict.ltlf', 'test_files/conflict.part')])
     assert "share names" in str(exc_info.value)
 
+
 def test_merge_two_specs():
     """Test merging two LTLf specifications."""
     merger = LTLfSpecMerger(share_ratio=0.5)
-    test_dir = os.path.join(os.path.dirname(__file__), '..', 'syft_1_filtered')
 
     spec_files = [
-        (os.path.join(test_dir, '001.ltlf'), os.path.join(test_dir, '001.part')),
-        (os.path.join(test_dir, '002.ltlf'), os.path.join(test_dir, '002.part'))
+        (os.path.join('syft_1_filtered', '001.ltlf'), os.path.join('syft_1_filtered', '001.part')),
+        (os.path.join('syft_1_filtered', '002.ltlf'), os.path.join('syft_1_filtered', '002.part'))
     ]
 
     merged_ltlf, merged_part = merger.merge_specs(spec_files)
@@ -70,12 +71,12 @@ def test_merge_two_specs():
     sum_env = sum(orig_env_counts)
     assert max_env <= len(env_vars) <= sum_env
 
+
 def test_variable_share_ratios():
     """Test different variable share ratios."""
-    test_dir = os.path.join(os.path.dirname(__file__), '..', 'syft_1_filtered')
     spec_files = [
-        (os.path.join(test_dir, '001.ltlf'), os.path.join(test_dir, '001.part')),
-        (os.path.join(test_dir, '002.ltlf'), os.path.join(test_dir, '002.part'))
+        (os.path.join('syft_1_filtered', '001.ltlf'), os.path.join('syft_1_filtered', '001.part')),
+        (os.path.join('syft_1_filtered', '002.ltlf'), os.path.join('syft_1_filtered', '002.part'))
     ]
 
     # Test minimum sharing (ratio = 0)
@@ -89,6 +90,7 @@ def test_variable_share_ratios():
     _, part_max = merger_max.merge_specs(spec_files)
     env_vars_max = part_max.split('\n')[0].replace('.inputs:', '').strip().split()
     assert len(env_vars_max) == 1  # max of original env vars
+
 
 def teardown_module():
     """Clean up test files."""

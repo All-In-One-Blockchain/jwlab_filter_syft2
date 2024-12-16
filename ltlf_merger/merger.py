@@ -1,8 +1,9 @@
 """
 Core implementation of LTLf specification merger.
 """
-from typing import List, Tuple, Dict, Set
+from typing import List, Tuple
 import random
+
 
 class LTLfSpecMerger:
     def __init__(self, share_ratio: float = 0.5):
@@ -118,6 +119,7 @@ class LTLfSpecMerger:
         merged_ltlf = " && ".join(formulas)
 
         # Create merged .part content
-        merged_part = f".inputs: {' '.join(merged_env_vars)}\n.outputs: {' '.join(merged_sys_vars)}\n"
+        merged_part = (f".inputs: {' '.join(merged_env_vars)}\n"
+                       f".outputs: {' '.join(merged_sys_vars)}\n")
 
         return merged_ltlf, merged_part

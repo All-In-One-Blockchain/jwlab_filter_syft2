@@ -51,7 +51,7 @@ class LTLfSpecMerger:
         """Calculate number of variables in merged result based on share ratio."""
         max_vars = max(var_counts)
         sum_vars = sum(var_counts)
-        return int(max_vars + (sum_vars - max_vars) * self.share_ratio)
+        return max(max_vars, int(sum_vars - (sum_vars - max_vars) * self.share_ratio))
 
     def merge_specs(self, spec_files: List[Tuple[str, str]]) -> Tuple[str, str]:
         """

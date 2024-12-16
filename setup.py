@@ -9,4 +9,9 @@ setup(
         "flake8==6.1.0",
     ],
     python_requires=">=3.7",
+    entry_points={
+        'console_scripts': [
+            'ltlf-merger=ltlf_merger.cli:main',
+        ],
+    },
 )

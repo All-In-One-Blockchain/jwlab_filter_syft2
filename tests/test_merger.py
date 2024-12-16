@@ -4,6 +4,7 @@ Tests for LTLf specification merger core functionality.
 import os
 import pytest
 from ltlf_merger.merger import LTLfSpecMerger
+import re
 
 
 def test_init_share_ratio():
@@ -90,6 +91,33 @@ def test_variable_share_ratios():
     _, part_max = merger_max.merge_specs(spec_files)
     env_vars_max = part_max.split('\n')[0].replace('.inputs:', '').strip().split()
     assert len(env_vars_max) == 1  # max of original env vars
+
+
+def test_unused_variable_removal():
+    """Test that unused variables are removed from output."""
+    merger = LTLfSpecMerger(share_ratio=0.0)  # Use max variables
+    spec_files = [
+        (os.path.join('syft_1_filtered', '001.ltlf'), os.path.join('syft_1_filtered', '001.part')),
+        (os.path.join('syft_1_filtered', '002.ltlf'), os.path.join('syft_1_filtered', '002.part'))
+    ]
+
+    merged_ltlf, merged_part = merger.merge_specs(spec_files)
+
+    # Parse merged .part content
+    env_line, sys_line = merged_part.strip().split('\n')
+    env_vars = env_line.replace('.inputs:', '').strip().split()
+    sys_vars = sys_line.replace('.outputs:', '').strip().split()
+
+    # Convert p format to env_ format for comparison with formula
+    env_vars_formula = [f"env_{var[1:]}" for var in env_vars]
+
+    # Extract all variables from formula using the same regex as the merger
+    formula_env_vars = set(re.findall(r'\b(env_\d+)(?:\W|$)', merged_ltlf))
+    formula_sys_vars = set(re.findall(r'\b(sys_\d+)(?:\W|$)', merged_ltlf))
+
+    # Verify that all variables in .part are used in formula
+    assert set(env_vars_formula) == formula_env_vars, "Some env variables in .part file don't match formula"
+    assert set(sys_vars) == formula_sys_vars, "Some sys variables in .part file don't match formula"
 
 
 def teardown_module():

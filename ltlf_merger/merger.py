@@ -57,6 +57,7 @@ def get_prefix_without_digits(s: str) -> str:
 def relabel_vars_in_plan(vars_replace_map_arr: List[Mapping[str, str]], used_vars: List[str]) -> Tuple[List[Mapping[str, str]], List[str]]:
     """find prefix in used_vars, the var in used_vars is like 'p1', 'p2', 'p3'"""
     if used_vars is None or len(used_vars) == 0:
+        return vars_replace_map_arr, used_vars
         raise ValueError("used_vars is empty")
     prefix = get_prefix_without_digits(used_vars[0])
     

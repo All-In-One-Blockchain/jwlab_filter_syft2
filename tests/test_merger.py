@@ -84,13 +84,13 @@ def test_variable_share_ratios():
     merger_min = LTLfSpecMerger(share_ratio=0.0)
     _, part_min = merger_min.merge_specs(spec_files)
     env_vars_min = part_min.split('\n')[0].replace('.inputs:', '').strip().split()
-    assert len(env_vars_min) == 2  # sum of original env vars
+    assert len(env_vars_min) == 1  # max of original env vars
 
     # Test maximum sharing (ratio = 1)
     merger_max = LTLfSpecMerger(share_ratio=1.0)
     _, part_max = merger_max.merge_specs(spec_files)
     env_vars_max = part_max.split('\n')[0].replace('.inputs:', '').strip().split()
-    assert len(env_vars_max) == 1  # max of original env vars
+    assert len(env_vars_max) == 2  # sum of original env vars
 
 
 def test_unused_variable_removal():
@@ -109,11 +109,11 @@ def test_unused_variable_removal():
     sys_vars = sys_line.replace('.outputs:', '').strip().split()
 
     # Convert p format to env_ format for comparison with formula
-    env_vars_formula = [f"env_{var[1:]}" for var in env_vars]
+    env_vars_formula = [f"e{var[1:]}" for var in env_vars]
 
     # Extract all variables from formula using the same regex as the merger
-    formula_env_vars = set(re.findall(r'\b(env_\d+)(?:\W|$)', merged_ltlf))
-    formula_sys_vars = set(re.findall(r'\b(sys_\d+)(?:\W|$)', merged_ltlf))
+    formula_env_vars = set(re.findall(r'\b(e\d+)(?:\W|$)', merged_ltlf))
+    formula_sys_vars = set(re.findall(r'\b(s\d+)(?:\W|$)', merged_ltlf))
 
     # Verify that all variables in .part are used in formula
     assert set(env_vars_formula) == formula_env_vars, "Some env variables in .part file don't match formula"

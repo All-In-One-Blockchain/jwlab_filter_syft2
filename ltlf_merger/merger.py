@@ -4,6 +4,12 @@ Core implementation of LTLf specification merger.
 from typing import List, Tuple
 import re
 
+def check_variable_conflicts(env_vars: List[str], sys_vars: List[str]):
+    """Check for conflicts between environment and system variables."""
+    env_set = set(env_vars)
+    sys_set = set(sys_vars)
+    if conflicts := env_set & sys_set:
+        raise ValueError(f"Environment and system variables share names: {conflicts}")
 
 class LTLfSpecMerger:
     def __init__(self, share_ratio: float = 0.5):
@@ -40,13 +46,6 @@ class LTLfSpecMerger:
         with open(ltlf_file, 'r') as f:
             return f.read().strip()
 
-    def _check_variable_conflicts(self, env_vars: List[List[str]], sys_vars: List[List[str]]):
-        """Check for conflicts between environment and system variables."""
-        env_set = set().union(*[set(vars) for vars in env_vars])
-        sys_set = set().union(*[set(vars) for vars in sys_vars])
-        if conflicts := env_set & sys_set:
-            raise ValueError(f"Environment and system variables share names: {conflicts}")
-
     def _calculate_merge_vars_count(self, vars_lists: List[List[str]]) -> int:
         """Calculate number of variables in merged result based on share ratio."""
         counts = [len(vars) for vars in vars_lists]
@@ -81,10 +80,9 @@ class LTLfSpecMerger:
             formulas.append(formula)
 
             env_vars, sys_vars = self._read_part_file(part_file)
+            check_variable_conflicts(env_vars, sys_vars)
             env_vars_lists.append(env_vars)
             sys_vars_lists.append(sys_vars)
-
-        self._check_variable_conflicts(env_vars_lists, sys_vars_lists)
 
         # Merge formulas first to determine which variables are actually used
         merged_ltlf = " && ".join(f"({formula})" for formula in formulas)

@@ -3,6 +3,7 @@ Command-line interface for LTLf specification merger.
 """
 import argparse
 import sys
+import os
 from typing import List, Tuple
 
 from ltlf_merger.merger import LTLfSpecMerger
@@ -33,6 +34,9 @@ def main():
                             '(e.g., "spec1.ltlf,spec1.part spec2.ltlf,spec2.part")')
     parser.add_argument('--share-ratio', type=float, default=0.5,
                        help='Share ratio between 0 and 1 (default: 0.5)')
+    parser.add_argument('--output-folder', type=str, default="drafts",
+                        help='output folder for merged .ltlf and .part files '
+                            '(default: "drafts")')
 
     args = parser.parse_args()
 
@@ -51,9 +55,11 @@ def main():
         merged_ltlf, merged_part = merger.merge_specs(spec_pairs)
 
         # Write output to files
-        with open('merged.ltlf', 'w') as f:
+        merged_ltlf_path = os.path.join(args.output_folder, 'merged.ltlf')
+        with open(merged_ltlf_path, 'w') as f:
             f.write(merged_ltlf)
-        with open('merged.part', 'w') as f:
+        merged_part_path = os.path.join(args.output_folder, 'merged.part')
+        with open(merged_part_path, 'w') as f:
             f.write(merged_part)
 
         print("Successfully merged specifications:")

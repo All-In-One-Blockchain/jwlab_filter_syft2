@@ -46,7 +46,9 @@ def test_merge_two_specs():
         (os.path.join('syft_1_filtered', '002.ltlf'), os.path.join('syft_1_filtered', '002.part'))
     ]
 
+    _, env_vars_lists, _ = merger.load_specs(spec_files)
     merged_ltlf, merged_part = merger.merge_specs(spec_files)
+    orig_env_counts = [len(env_vars) for env_vars in env_vars_lists]
 
     # Verify formula structure
     assert merged_ltlf.startswith('(')
@@ -67,7 +69,6 @@ def test_merge_two_specs():
     assert not set(env_vars).intersection(set(sys_vars))
 
     # Verify variable count constraints
-    orig_env_counts = [1, 1]  # from 001.part and 002.part
     max_env = max(orig_env_counts)
     sum_env = sum(orig_env_counts)
     assert max_env <= len(env_vars) <= sum_env
@@ -79,18 +80,21 @@ def test_variable_share_ratios():
         (os.path.join('syft_1_filtered', '001.ltlf'), os.path.join('syft_1_filtered', '001.part')),
         (os.path.join('syft_1_filtered', '002.ltlf'), os.path.join('syft_1_filtered', '002.part'))
     ]
+    merger = LTLfSpecMerger(share_ratio=0.5)
+    _, env_vars_lists, _ = merger.load_specs(spec_files)
+    orig_env_counts = [len(env_vars) for env_vars in env_vars_lists] 
 
     # Test minimum sharing (ratio = 0)
     merger_min = LTLfSpecMerger(share_ratio=0.0)
     _, part_min = merger_min.merge_specs(spec_files)
     env_vars_min = part_min.split('\n')[0].replace('.inputs:', '').strip().split()
-    assert len(env_vars_min) == 1  # max of original env vars
+    assert len(env_vars_min) == max(orig_env_counts)  # max of original env vars
 
     # Test maximum sharing (ratio = 1)
     merger_max = LTLfSpecMerger(share_ratio=1.0)
     _, part_max = merger_max.merge_specs(spec_files)
     env_vars_max = part_max.split('\n')[0].replace('.inputs:', '').strip().split()
-    assert len(env_vars_max) == 2  # sum of original env vars
+    assert len(env_vars_max) == sum(orig_env_counts)  # sum of original env vars
 
 
 def test_unused_variable_removal():

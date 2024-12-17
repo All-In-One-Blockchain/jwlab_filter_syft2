@@ -75,6 +75,14 @@ def relabel_vars_in_plan(vars_replace_map_arr: List[Mapping[str, str]], used_var
         new_vars_replace_map_arr.append(new_vars_replace_map)
     return new_vars_replace_map_arr, relabel_vars
 
+
+def convert_spec_to_string(formulas: List[str], env_vars: List[str], sys_vars: List[str]) -> Tuple[str, str]:
+    """Write merged LTLf formula and .part content to files."""
+    merged_ltlf = ' && '.join(formulas)
+    merged_part = (f".inputs: {' '.join(env_vars)}\n"
+                  f".outputs: {' '.join(sys_vars)}\n")
+    return merged_ltlf, merged_part
+
 class LTLfSpecMerger:
     def __init__(self, share_ratio: float = 0.5):
         """
@@ -120,7 +128,7 @@ class LTLfSpecMerger:
         used_vars = set(re.findall(r'p[a-zA-Z0-9_]+', formula))
         return used_vars
     
-    def _read_sepcs(self, spec_files: List[Tuple[str, str]]) -> Tuple[List[str], List[List[str]], List[List[str]]]:
+    def load_specs(self, spec_files: List[Tuple[str, str]]) -> Tuple[List[str], List[List[str]], List[List[str]]]:
         formulas = []
         env_vars_lists = []
         sys_vars_lists = []
@@ -143,7 +151,7 @@ class LTLfSpecMerger:
             env_vars_lists.append(used_env_vars)
             sys_vars_lists.append(used_sys_vars)
         return formulas, env_vars_lists, sys_vars_lists
-
+    
     def merge_specs(self, spec_files: List[Tuple[str, str]]) -> Tuple[str, str]:
         """
         Merge multiple LTLf specs according to the algorithm in README.md.
@@ -154,8 +162,22 @@ class LTLfSpecMerger:
         Returns:
             Tuple of (merged_ltlf_content, merged_part_content)
         """
-        formulas, env_vars_lists, sys_vars_lists = self._read_sepcs(spec_files)
+        formulas, env_vars_lists, sys_vars_lists = self.load_specs(spec_files)
+        res_tuple = self.merge_specs_inner(formulas, env_vars_lists, sys_vars_lists)
+        return convert_spec_to_string(*res_tuple)
 
+    def merge_specs_inner(self, formulas: List[str], env_vars_lists: List[List[str]], sys_vars_lists: List[List[str]]) -> Tuple[List[str], List[str], List[str]]:
+        """
+        Merge multiple LTLf specs according to the algorithm in README.md.
+
+        Args:
+            formulas: List of LTLf formulas
+            env_vars_lists: List of environment variables
+            sys_vars_lists: List of system variables
+
+        Returns:
+            Tuple of (merged_ltlf_content, merged_part_content)
+        """
         # For partial sharing, start with used variables and add until target count
         env_count = self._calculate_merge_vars_count(env_vars_lists)
         sys_count = self._calculate_merge_vars_count(sys_vars_lists)
@@ -166,10 +188,6 @@ class LTLfSpecMerger:
         env_vars_replace_map_arr, used_env_vars = relabel_vars_in_plan(*get_random_replace_plan(env_vars_lists, final_env_vars))
         sys_vars_replace_map_arr, used_sys_vars = relabel_vars_in_plan(*get_random_replace_plan(sys_vars_lists, final_sys_vars))
 
-        # Create merged .part content
-        merged_part = (f".inputs: {' '.join(used_env_vars)}\n"
-                      f".outputs: {' '.join(used_sys_vars)}\n")
-
         # Merge formulas first to determine which variables are actually used
         replaced_formulas = []
         for formula, env_vars_replace_map, sys_vars_replace_map in zip(formulas, env_vars_replace_map_arr, sys_vars_replace_map_arr):
@@ -178,6 +196,5 @@ class LTLfSpecMerger:
             for old_var, new_var in sys_vars_replace_map.items():
                 formula = formula.replace(old_var, new_var)
             replaced_formulas.append(formula)
-        merged_ltlf = " && ".join(replaced_formulas)
-
-        return merged_ltlf, merged_part
+        
+        return replaced_formulas, used_env_vars, used_sys_vars

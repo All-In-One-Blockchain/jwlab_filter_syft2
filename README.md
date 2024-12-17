@@ -51,8 +51,8 @@ speck: enk environment variables, snk environment variables
 ##### merge of environment variables
 
 > According to before statement, the new merge spec can have [max(en1, en2, ..., enk), sum(en1, en2, ..., enk)] environment variables.
-> if the value of variables share ratio is 0, we expect to have max(en1, en2, ..., enk) environment vairables in the merge results
-> if the value of variables share ratio is 1, we expect to have sum(en1, en2, ..., enk) environment vairables in the merge results
+> if the value of variables share ratio is 1, we expect to have max(en1, en2, ..., enk) environment vairables in the merge results
+> if the value of variables share ratio is 0, we expect to have sum(en1, en2, ..., enk) environment vairables in the merge results
 > NOTE: just expect, not exactly the number!
 
 let sum_en = sum(en1, en2, ..., enk), max_en = max(en1, en2, ..., enk), the value of variables share ratio is share_ratio

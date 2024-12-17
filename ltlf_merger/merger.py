@@ -47,13 +47,9 @@ class LTLfSpecMerger:
         if conflicts := env_set & sys_set:
             raise ValueError(f"Environment and system variables share names: {conflicts}")
 
-    def _calculate_merge_vars_count(self, var_counts: List[List[str]]) -> int:
+    def _calculate_merge_vars_count(self, vars_lists: List[List[str]]) -> int:
         """Calculate number of variables in merged result based on share ratio."""
-        counts = [len(vars) for vars in var_counts]
-        if self.share_ratio == 1.0:
-            return max(counts)
-        elif self.share_ratio == 0.0:
-            return len(set().union(*[set(vars) for vars in var_counts]))
+        counts = [len(vars) for vars in vars_lists]
         return max(counts) + int((sum(counts) - max(counts)) * self.share_ratio)
 
     def _get_used_variables(self, formula: str) -> Tuple[set, set]:

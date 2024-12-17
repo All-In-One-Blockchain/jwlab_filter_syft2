@@ -1,0 +1,3 @@
+"""
+LTLf Specification Merger package.
+"""

@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Install and Run",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/ltlf_merger/cli.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--input",
+                "syft_1_filtered/001.ltlf,syft_1_filtered/001.part syft_1_filtered/002.ltlf,syft_1_filtered/002.part",
+                "--share-ratio",
+                "1"
+            ]
+        }
+    ]
+}

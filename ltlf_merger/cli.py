@@ -37,6 +37,9 @@ def main():
     parser.add_argument('--output-folder', type=str, default="drafts",
                         help='output folder for merged .ltlf and .part files '
                             '(default: "drafts")')
+    parser.add_argument('--output-base-filename', type=str, default="merged",
+                        help='output base filename for merged .ltlf and .part files '
+                            '(default: "merged")')
 
     args = parser.parse_args()
 
@@ -55,10 +58,10 @@ def main():
         merged_ltlf, merged_part = merger.merge_specs(spec_pairs)
 
         # Write output to files
-        merged_ltlf_path = os.path.join(args.output_folder, 'merged.ltlf')
+        merged_ltlf_path = os.path.join(args.output_folder, f'{args.output_base_filename}.ltlf')
         with open(merged_ltlf_path, 'w') as f:
             f.write(merged_ltlf)
-        merged_part_path = os.path.join(args.output_folder, 'merged.part')
+        merged_part_path = os.path.join(args.output_folder, f'{args.output_base_filename}.part')
         with open(merged_part_path, 'w') as f:
             f.write(merged_part)
 

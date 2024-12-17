@@ -1,8 +1,14 @@
 """
 Core implementation of LTLf specification merger.
 """
-from typing import List, Tuple
+from typing import List, Tuple, Mapping
 import re
+import random
+
+def check_variable_repeat(vars: List[str]):
+    """Check for repeated variables in a list."""
+    if len(set(vars)) != len(vars):
+        raise ValueError("Variables must be unique")
 
 def check_variable_conflicts(env_vars: List[str], sys_vars: List[str]):
     """Check for conflicts between environment and system variables."""
@@ -16,6 +22,58 @@ def add_brackets_if_needed(formula: str) -> str:
     if formula.startswith('(') and formula.endswith(')'):
         return formula
     return f"({formula})"
+
+def create_variable_array(count: int, prefix: str) -> List[str]:
+    """Create an array of variables with a given count and prefix."""
+    return [f"{prefix}{i}" for i in range(count)]
+
+def get_random_replace_plan(old_vars_lists: List[List[str]], final_vars: List[str]) -> Tuple[List[Mapping[str, str]], List[str]]:
+    vars_replace_map_arr = []
+    used_vars = set()
+    for old_vars in old_vars_lists:
+        cur_vars_replace_map = {}
+        tmp_vars = final_vars.copy()
+        # impl random choose by shuffle
+        random.shuffle(tmp_vars)
+
+        for old_var in old_vars:
+            chosen_var = tmp_vars.pop()
+            cur_vars_replace_map[old_var] = chosen_var
+            used_vars.add(chosen_var)
+
+        vars_replace_map_arr.append(cur_vars_replace_map)
+    return vars_replace_map_arr, list(used_vars)
+
+def get_prefix_without_digits(s: str) -> str:
+    if not s:  # 如果字符串为空
+        raise ValueError("input string is empty")
+    
+    match = re.match(r'^[^\d]+', s)  # 匹配非数字的部分
+    if match:
+        return match.group(0)
+    else:
+        raise ValueError("input string is all digits")
+
+def relabel_vars_in_plan(vars_replace_map_arr: List[Mapping[str, str]], used_vars: List[str]) -> Tuple[List[Mapping[str, str]], List[str]]:
+    """find prefix in used_vars, the var in used_vars is like 'p1', 'p2', 'p3'"""
+    if used_vars is None or len(used_vars) == 0:
+        raise ValueError("used_vars is empty")
+    prefix = get_prefix_without_digits(used_vars[0])
+    
+    """the var num in used_vars maybe not continuous, so we need to relabel them"""
+    relabel_map = {}
+    relabel_vars = []
+    for i, var in enumerate(used_vars):
+        relabel_map[var] = f"{prefix}{i}"
+        relabel_vars.append(f"{prefix}{i}")
+
+    new_vars_replace_map_arr = []
+    for vars_replace_map in vars_replace_map_arr:
+        new_vars_replace_map = {}
+        for old_var, new_var in vars_replace_map.items():
+            new_vars_replace_map[old_var] = relabel_map[new_var]
+        new_vars_replace_map_arr.append(new_vars_replace_map)
+    return new_vars_replace_map_arr, relabel_vars
 
 class LTLfSpecMerger:
     def __init__(self, share_ratio: float = 0.5):
@@ -58,12 +116,33 @@ class LTLfSpecMerger:
         return max(counts) + int((sum(counts) - max(counts)) * self.share_ratio)
 
     def _get_used_variables(self, formula: str) -> Tuple[set, set]:
-        """Extract used environment and system variables from formula."""
-        env_vars = set(re.findall(r'\b(env_\d+)(?:\W|$)', formula))
-        sys_vars = set(re.findall(r'\b(sys_\d+)(?:\W|$)', formula))
-        p_vars = set(re.findall(r'\b(p\d+)(?:\W|$)', formula))
-        env_vars.update(f"env_{var[1:]}" for var in p_vars)
-        return env_vars, sys_vars
+        """Extract used variables from formula."""
+        used_vars = set(re.findall(r'p[a-zA-Z0-9_]+', formula))
+        return used_vars
+    
+    def _read_sepcs(self, spec_files: List[Tuple[str, str]]) -> Tuple[List[str], List[List[str]], List[List[str]]]:
+        formulas = []
+        env_vars_lists = []
+        sys_vars_lists = []
+        """Read all specifications and convert variables"""
+        for ltlf_file, part_file in spec_files:
+            formula = self._read_ltlf_file(ltlf_file)
+            formula = add_brackets_if_needed(formula)
+            formulas.append(formula)
+
+            env_vars, sys_vars = self._read_part_file(part_file)
+            check_variable_repeat(env_vars)
+            check_variable_repeat(sys_vars)
+            check_variable_conflicts(env_vars, sys_vars)
+
+            used_var_set = self._get_used_variables(formula)
+            # filter used variables for env_vars and sys_vars
+            used_env_vars = [var for var in env_vars if var in used_var_set]
+            used_sys_vars = [var for var in sys_vars if var in used_var_set]
+
+            env_vars_lists.append(used_env_vars)
+            sys_vars_lists.append(used_sys_vars)
+        return formulas, env_vars_lists, sys_vars_lists
 
     def merge_specs(self, spec_files: List[Tuple[str, str]]) -> Tuple[str, str]:
         """
@@ -75,93 +154,30 @@ class LTLfSpecMerger:
         Returns:
             Tuple of (merged_ltlf_content, merged_part_content)
         """
-        formulas = []
-        env_vars_lists = []
-        sys_vars_lists = []
+        formulas, env_vars_lists, sys_vars_lists = self._read_sepcs(spec_files)
 
-        # Read all specifications and convert variables
-        for ltlf_file, part_file in spec_files:
-            formula = self._read_ltlf_file(ltlf_file)
-            formula = add_brackets_if_needed(formula)
-            formulas.append(formula)
+        # For partial sharing, start with used variables and add until target count
+        env_count = self._calculate_merge_vars_count(env_vars_lists)
+        sys_count = self._calculate_merge_vars_count(sys_vars_lists)
+        final_env_vars = create_variable_array(env_count, 'e')
+        final_sys_vars = create_variable_array(sys_count, 's')
 
-            env_vars, sys_vars = self._read_part_file(part_file)
-            check_variable_conflicts(env_vars, sys_vars)
-            env_vars_lists.append(env_vars)
-            sys_vars_lists.append(sys_vars)
-
-        # Merge formulas first to determine which variables are actually used
-        merged_ltlf = " && ".join(formulas)
-        used_env_vars, used_sys_vars = self._get_used_variables(merged_ltlf)
-
-        # Get all available variables from original specs
-        all_env_vars_p = sorted(set().union(*[set(vars) for vars in env_vars_lists]))
-        all_sys_vars = sorted(set().union(*[set(vars) for vars in sys_vars_lists]))
-
-        # Convert all variables that appear in formula to env_ format
-        all_formula_vars = sorted(set(
-            [f"env_{var[1:]}" for var in all_env_vars_p] +
-            [f"env_{var[1:]}" for var in all_sys_vars if var.startswith('p')]
-        ))
-
-        # Calculate target variable counts based on actual formula usage
-        env_vars_in_formula = set(used_env_vars)
-        sys_vars_in_formula = set(used_sys_vars)
-
-        # For share_ratio = 0.0, keep all variables used in formula
-        if self.share_ratio == 0.0:
-            final_env_vars = sorted(env_vars_in_formula)
-            final_sys_vars = sorted(sys_vars_in_formula)
-            # Add any p-format variables used in formula
-            for var in all_formula_vars:
-                if var in used_env_vars:
-                    final_env_vars.append(var)
-            final_env_vars = sorted(set(final_env_vars))
-        elif self.share_ratio == 1.0:
-            # For maximum sharing, keep only used variables up to max count
-            max_env_count = max(len(vars) for vars in env_vars_lists)
-            max_sys_count = max(len(vars) for vars in sys_vars_lists)
-
-            # Start with used variables
-            final_env_vars = sorted(used_env_vars)
-            final_sys_vars = sorted(used_sys_vars)
-
-            # Add unused variables if needed to reach max count
-            remaining_env_vars = [v for v in all_formula_vars if v not in final_env_vars]
-            remaining_sys_vars = [v for v in all_sys_vars if v not in final_sys_vars]
-
-            while len(final_env_vars) < max_env_count and remaining_env_vars:
-                final_env_vars.append(remaining_env_vars.pop(0))
-            while len(final_sys_vars) < max_sys_count and remaining_sys_vars:
-                final_sys_vars.append(remaining_sys_vars.pop(0))
-
-            final_env_vars = sorted(final_env_vars)[:max_env_count]
-            final_sys_vars = sorted(final_sys_vars)[:max_sys_count]
-        else:
-            # For partial sharing, start with used variables and add until target count
-            env_count = self._calculate_merge_vars_count(env_vars_lists)
-            sys_count = self._calculate_merge_vars_count(sys_vars_lists)
-
-
-            final_env_vars = list(used_env_vars)
-            final_sys_vars = list(used_sys_vars)
-
-            remaining_env_vars = [v for v in all_formula_vars if v not in final_env_vars]
-            remaining_sys_vars = [v for v in all_sys_vars if v not in final_sys_vars]
-
-            while len(final_env_vars) < env_count and remaining_env_vars:
-                final_env_vars.append(remaining_env_vars.pop(0))
-            while len(final_sys_vars) < sys_count and remaining_sys_vars:
-                final_sys_vars.append(remaining_sys_vars.pop(0))
-
-            final_env_vars = sorted(final_env_vars)[:env_count]
-            final_sys_vars = sorted(final_sys_vars)[:sys_count]
-
-        # Convert env_ format back to p format for .part file
-        final_env_vars_part = [f"p{var[4:]}" for var in final_env_vars]
+        # Get random replace plan
+        env_vars_replace_map_arr, used_env_vars = relabel_vars_in_plan(*get_random_replace_plan(env_vars_lists, final_env_vars))
+        sys_vars_replace_map_arr, used_sys_vars = relabel_vars_in_plan(*get_random_replace_plan(sys_vars_lists, final_sys_vars))
 
         # Create merged .part content
-        merged_part = (f".inputs: {' '.join(final_env_vars_part)}\n"
-                      f".outputs: {' '.join(final_sys_vars)}\n")
+        merged_part = (f".inputs: {' '.join(used_env_vars)}\n"
+                      f".outputs: {' '.join(used_sys_vars)}\n")
+
+        # Merge formulas first to determine which variables are actually used
+        replaced_formulas = []
+        for formula, env_vars_replace_map, sys_vars_replace_map in zip(formulas, env_vars_replace_map_arr, sys_vars_replace_map_arr):
+            for old_var, new_var in env_vars_replace_map.items():
+                formula = formula.replace(old_var, new_var)
+            for old_var, new_var in sys_vars_replace_map.items():
+                formula = formula.replace(old_var, new_var)
+            replaced_formulas.append(formula)
+        merged_ltlf = " && ".join(replaced_formulas)
 
         return merged_ltlf, merged_part

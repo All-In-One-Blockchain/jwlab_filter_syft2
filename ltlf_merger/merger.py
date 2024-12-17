@@ -163,8 +163,22 @@ class LTLfSpecMerger:
             Tuple of (merged_ltlf_content, merged_part_content)
         """
         formulas, env_vars_lists, sys_vars_lists = self.load_specs(spec_files)
-        res_tuple = self.merge_specs_inner(formulas, env_vars_lists, sys_vars_lists)
-        return convert_spec_to_string(*res_tuple)
+        env_counts = [len(env_vars) for env_vars in env_vars_lists]
+        sys_counts = [len(sys_vars) for sys_vars in sys_vars_lists]
+        # merge env_counts and sys_counts by plus
+        merged_counts = [env + sys for env, sys in zip(env_counts, sys_counts)]
+
+        best_res = None
+        best_share_ratio = 0
+        for _ in range(100):
+            tmp_res = self.merge_specs_inner(formulas, env_vars_lists, sys_vars_lists)
+            tmp_share_ratio = ( len(tmp_res[1]) + len(tmp_res[2])  - max(merged_counts) )/ (sum(merged_counts) - max(merged_counts))
+            if best_res is None or abs(tmp_share_ratio - self.share_ratio) <= abs(best_share_ratio - self.share_ratio):
+                best_res = tmp_res
+                best_share_ratio = tmp_share_ratio
+            if abs(tmp_share_ratio - self.share_ratio) < 0.05:
+                break
+        return convert_spec_to_string(*best_res)
 
     def merge_specs_inner(self, formulas: List[str], env_vars_lists: List[List[str]], sys_vars_lists: List[List[str]]) -> Tuple[List[str], List[str], List[str]]:
         """

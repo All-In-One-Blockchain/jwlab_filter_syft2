@@ -11,6 +11,12 @@ def check_variable_conflicts(env_vars: List[str], sys_vars: List[str]):
     if conflicts := env_set & sys_set:
         raise ValueError(f"Environment and system variables share names: {conflicts}")
 
+def add_brackets_if_needed(formula: str) -> str:
+    """Add brackets around formula if it doesn't"""
+    if formula.startswith('(') and formula.endswith(')'):
+        return formula
+    return f"({formula})"
+
 class LTLfSpecMerger:
     def __init__(self, share_ratio: float = 0.5):
         """
@@ -76,7 +82,7 @@ class LTLfSpecMerger:
         # Read all specifications and convert variables
         for ltlf_file, part_file in spec_files:
             formula = self._read_ltlf_file(ltlf_file)
-            formula = re.sub(r'\bp(\d+)\b', r'env_\1', formula)
+            formula = add_brackets_if_needed(formula)
             formulas.append(formula)
 
             env_vars, sys_vars = self._read_part_file(part_file)
@@ -85,7 +91,7 @@ class LTLfSpecMerger:
             sys_vars_lists.append(sys_vars)
 
         # Merge formulas first to determine which variables are actually used
-        merged_ltlf = " && ".join(f"({formula})" for formula in formulas)
+        merged_ltlf = " && ".join(formulas)
         used_env_vars, used_sys_vars = self._get_used_variables(merged_ltlf)
 
         # Get all available variables from original specs
